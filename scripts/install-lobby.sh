@@ -6,6 +6,7 @@ ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 LOBBY_DIR="${ROOT_DIR}/servers/lobby"
 API_URL="https://fill.papermc.io/v3/projects/paper/versions/${MC_VERSION}/builds"
 USER_AGENT="YellowStarNetworkMC/0.1 (https://github.com/YanElias/yellowstarnetworkMC)"
+CURL_RETRIES=(--retry 8 --retry-all-errors --retry-delay 3 --connect-timeout 20)
 
 for command in curl jq sha256sum; do
   if ! command -v "${command}" >/dev/null 2>&1; then
@@ -22,7 +23,7 @@ fi
 mkdir -p "${LOBBY_DIR}"
 echo "Consultando builds estáveis oficiais do Paper para Minecraft ${MC_VERSION}..."
 
-BUILDS_JSON="$(curl -fsSL -H "User-Agent: ${USER_AGENT}" "${API_URL}")"
+BUILDS_JSON="$(curl -fsSL "${CURL_RETRIES[@]}" -H "User-Agent: ${USER_AGENT}" "${API_URL}")"
 DOWNLOAD_URL="$(jq -er 'first(.[] | select(.channel == "STABLE") | .downloads["server:default"].url) // empty' <<< "${BUILDS_JSON}")"
 JAR_NAME="$(jq -er 'first(.[] | select(.channel == "STABLE") | .downloads["server:default"].name) // empty' <<< "${BUILDS_JSON}")"
 EXPECTED_SHA256="$(jq -er 'first(.[] | select(.channel == "STABLE") | .downloads["server:default"].checksums.sha256) // empty' <<< "${BUILDS_JSON}")"
@@ -39,7 +40,8 @@ cleanup() {
 trap cleanup EXIT
 
 echo "Baixando ${JAR_NAME} do serviço oficial PaperMC..."
-curl -fL --retry 3 --retry-delay 2 -H "User-Agent: ${USER_AGENT}" "${DOWNLOAD_URL}" -o "${TEMP_JAR}"
+echo "Se a conexão cair, o curl tentará novamente automaticamente."
+curl -fL --show-error "${CURL_RETRIES[@]}" --speed-time 30 --speed-limit 1024 -H "User-Agent: ${USER_AGENT}" "${DOWNLOAD_URL}" -o "${TEMP_JAR}"
 
 ACTUAL_SHA256="$(sha256sum "${TEMP_JAR}" | awk '{print $1}')"
 if [[ "${ACTUAL_SHA256}" != "${EXPECTED_SHA256}" ]]; then
