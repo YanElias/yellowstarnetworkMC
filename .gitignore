@@ -1,0 +1,25 @@
+# Downloaded server software
+*.jar
+
+# Server runtime and worlds
+servers/
+runtime/
+world/
+world_nether/
+world_the_end/
+logs/
+crash-reports/
+plugins/
+cache/
+libraries/
+
+# Local secrets and environment
+.env
+.env.*
+!.env.example
+
+# Editors and OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
